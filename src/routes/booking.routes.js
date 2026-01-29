@@ -53,4 +53,16 @@ router.post("/:slotId", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/my-bookings
+ * Patient views their bookings
+ */
+router.get("/my-bookings", authMiddleware, async (req, res) => {
+  const bookings = await Slot.find({
+    bookedBy: req.user.userId
+  }).sort({ date: 1, startTime: 1 });
+
+  return res.json(bookings);
+});
+
 module.exports = router;
