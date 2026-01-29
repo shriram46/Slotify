@@ -17,7 +17,13 @@ const slotSchema = new mongoose.Schema(
     isBooked: {
       type: Boolean,
       default: false
+    },
+    bookedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
     }
+
   },
   { timestamps: true }
 );
