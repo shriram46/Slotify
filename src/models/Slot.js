@@ -22,4 +22,12 @@ const slotSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/**
+ * Prevent duplicate slots for same date & time
+ */
+slotSchema.index(
+  { date: 1, startTime: 1, endTime: 1 },
+  { unique: true }
+);
+
 module.exports = mongoose.model("Slot", slotSchema);

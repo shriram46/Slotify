@@ -46,13 +46,31 @@ router.post(
       });
     }
 
-    // Persist generated slots in the database
-    await Slot.insertMany(slots);
+    try {
+      // Persist generated slots in the database
+      await Slot.insertMany(slots, { ordered: false });
 
-    return res.status(201).json({
-      message: "Slots created successfully",
-      totalSlots: slots.length
-    });
+      return res.status(201).json({
+        message: "Slots created successfully",
+        totalSlots: slots.length
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(409).json({
+          error: {
+            code: "SLOTS_ALREADY_EXIST",
+            message: "Slots already exist for this date and time range"
+          }
+        });
+      }
+
+      return res.status(500).json({
+        error: {
+          code: "SERVER_ERROR",
+          message: "Failed to create slots"
+        }
+      });
+    }
   }
 );
 
