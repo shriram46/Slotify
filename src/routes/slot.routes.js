@@ -101,4 +101,26 @@ router.get("/", authMiddleware, async (req, res) => {
   return res.json(slots);
 });
 
+/**
+ * GET /api/slots/bookings
+ * Admin views all booked slots
+ */
+router.get(
+  "/bookings",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    const { date } = req.query;
+
+    const filter = { isBooked: true };
+    if (date) filter.date = date;
+
+    const bookings = await Slot.find(filter)
+      .populate("bookedBy", "name email")
+      .sort({ date: 1, startTime: 1 });
+
+    return res.json(bookings);
+  }
+);
+
 module.exports = router;
