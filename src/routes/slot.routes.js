@@ -123,4 +123,43 @@ router.get(
   }
 );
 
+/**
+ * DELETE /api/slots/:slotId/cancel
+ * Patient cancels their booking
+ */
+router.delete(
+  "/:slotId/cancel",
+  authMiddleware,
+  async (req, res) => {
+    const { slotId } = req.params;
+
+    const slot = await Slot.findOneAndUpdate(
+      {
+        _id: slotId,
+        isBooked: true,
+        bookedBy: req.user.userId
+      },
+      {
+        isBooked: false,
+        bookedBy: null
+      },
+      { new: true }
+    );
+
+    if (!slot) {
+      return res.status(403).json({
+        error: {
+          code: "CANCEL_NOT_ALLOWED",
+          message: "You can only cancel your own booked slot"
+        }
+      });
+    }
+
+    return res.status(200).json({
+      message: "Booking cancelled successfully",
+      slot
+    });
+  }
+);
+
 module.exports = router;
