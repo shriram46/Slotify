@@ -162,4 +162,44 @@ router.delete(
   }
 );
 
+/**
+ * DELETE /api/slots/:slotId
+ * Allows admin to delete an unbooked slot
+ * Access: Protected (Admin only)
+ */
+router.delete(
+  "/:slotId",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    const { slotId } = req.params;
+
+    const slot = await Slot.findById(slotId);
+
+    if (!slot) {
+      return res.status(404).json({
+        error: {
+          code: "SLOT_NOT_FOUND",
+          message: "Slot not found"
+        }
+      });
+    }
+
+    if (slot.isBooked) {
+      return res.status(400).json({
+        error: {
+          code: "SLOT_ALREADY_BOOKED",
+          message: "Booked slots cannot be deleted"
+        }
+      });
+    }
+
+    await Slot.deleteOne({ _id: slotId });
+
+    return res.json({
+      message: "Slot deleted successfully"
+    });
+  }
+);
+
 module.exports = router;
