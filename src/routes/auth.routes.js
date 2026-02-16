@@ -2,6 +2,10 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const {
+  validateRegister,
+  validateLogin
+} = require("../validators/authValidator");
 
 const router = express.Router();
 
@@ -9,16 +13,17 @@ const router = express.Router();
  * POST /api/register
  */
 router.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
+  try{
 
-  if (!name || !email || !password) {
-    return res.status(400).json({
-      error: {
-        code: "INVALID_INPUT",
-        message: "Name, email and password are required"
-      }
-    });
-  }
+  let { name, email, password } = req.body;
+
+     const error = validateRegister({ name, email, password });
+
+    if (error) {
+      return res.status(400).json({
+        error: { code: "INVALID_INPUT", message: error }
+      });
+    }
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -42,22 +47,37 @@ router.post("/register", async (req, res) => {
     message: "User registered successfully",
     userId: user._id
   });
+  
+  } catch (err) {
+  console.error(err); 
+
+  return res.status(500).json({
+    error: { code: "SERVER_ERROR", message: "Registration failed" }
+  });
+}
+
 });
 
 /**
  * POST /api/login
  */
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  try{
 
-  if (!email || !password) {
-    return res.status(400).json({
-      error: {
-        code: "INVALID_INPUT",
-        message: "Email and password are required"
-      }
-    });
-  }
+      let { email, password } = req.body;
+
+     // Normalize input
+    email = email.toLowerCase().trim();
+    password = password.trim();
+
+    const error = validateLogin({email, password });
+
+    if (error) {
+      return res.status(400).json({
+        error: { code: "INVALID_INPUT", message: error }
+      });
+    }
+
 
   const user = await User.findOne({ email });
   if (!user) {
@@ -89,6 +109,17 @@ router.post("/login", async (req, res) => {
     token,
     role: user.role
   });
+} catch (err) {
+  console.error(err);
+
+  return res.status(500).json({
+    error: {
+      code: "SERVER_ERROR",
+      message: "Login failed"
+    }
+  });
+}
+
 });
 
 module.exports = router;
