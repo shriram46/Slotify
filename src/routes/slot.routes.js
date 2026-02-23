@@ -80,6 +80,7 @@ router.post(
  * Access: Protected (Authenticated users)
  */
 router.get("/", authMiddleware, async (req, res) => {
+ try { 
   const { date } = req.query;
 
   // Date is mandatory to fetch slots
@@ -99,6 +100,14 @@ router.get("/", authMiddleware, async (req, res) => {
   }).sort({ startTime: 1 });
 
   return res.json(slots);
+}  catch (err) {
+    return res.status(500).json({
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to fetch slots"
+      }
+    });
+  }
 });
 
 /**
@@ -110,6 +119,7 @@ router.get(
   authMiddleware,
   adminMiddleware,
   async (req, res) => {
+    try {
     const { date } = req.query;
 
     const filter = { isBooked: true };
@@ -120,6 +130,14 @@ router.get(
       .sort({ date: 1, startTime: 1 });
 
     return res.json(bookings);
+  } catch (err) {
+      return res.status(500).json({
+        error: {
+          code: "SERVER_ERROR",
+          message: "Failed to fetch bookings"
+        }
+      });
+    }
   }
 );
 
@@ -131,6 +149,7 @@ router.delete(
   "/:slotId/cancel",
   authMiddleware,
   async (req, res) => {
+    try {
     const { slotId } = req.params;
 
     const slot = await Slot.findOneAndUpdate(
@@ -159,6 +178,16 @@ router.delete(
       message: "Booking cancelled successfully",
       slot
     });
+  } catch (err) {
+      console.error("Cancel booking error:", err); // server log
+
+      return res.status(500).json({
+        error: {
+          code: "SERVER_ERROR",
+          message: "Failed to cancel booking"
+        }
+      });
+    }
   }
 );
 
@@ -172,6 +201,7 @@ router.delete(
   authMiddleware,
   adminMiddleware,
   async (req, res) => {
+    try{
     const { slotId } = req.params;
 
     const slot = await Slot.findById(slotId);
@@ -199,6 +229,16 @@ router.delete(
     return res.json({
       message: "Slot deleted successfully"
     });
+  } catch (err) {
+      console.error("Delete slot error:", err);
+
+      return res.status(500).json({
+        error: {
+          code: "SERVER_ERROR",
+          message: "Failed to delete slot"
+        }
+      });
+    }
   }
 );
 
