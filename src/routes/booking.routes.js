@@ -39,13 +39,37 @@ router.post("/:slotId", authMiddleware, async (req, res) => {
     );
 
     if (!slot) {
-      return res.status(409).json({
-        error: {
-          code: "SLOT_ALREADY_BOOKED",
-          message: "This slot is no longer available",
-        },
-      });
+
+  //  Check if slot exists at all
+  const existingSlot = await Slot.findById(slotId);
+
+  if (!existingSlot) {
+    return res.status(404).json({
+      error: {
+        code: "SLOT_NOT_FOUND",
+        message: "Slot not found"
+      }
+    });
+  }
+
+  //  Booked by same user
+  if (existingSlot.bookedBy?.toString() === userId) {
+    return res.status(409).json({
+      error: {
+        code: "ALREADY_BOOKED_BY_YOU",
+        message: "You have already booked this slot"
+      }
+    });
+  }
+
+  //  Booked by someone else
+  return res.status(409).json({
+    error: {
+      code: "SLOT_ALREADY_BOOKED",
+      message: "This slot is no longer available"
     }
+  });
+}
 
     return res.status(200).json({
       message: "Slot booked successfully",
