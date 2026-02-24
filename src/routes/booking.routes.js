@@ -58,11 +58,20 @@ router.post("/:slotId", authMiddleware, async (req, res) => {
  * Patient views their bookings
  */
 router.get("/my-bookings", authMiddleware, async (req, res) => {
+  try {
   const bookings = await Slot.find({
     bookedBy: req.user.userId
   }).sort({ date: 1, startTime: 1 });
 
   return res.json(bookings);
+} catch (err) {
+    return res.status(500).json({
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to fetch bookings",
+      },
+    });
+  }
 });
 
 module.exports = router;
