@@ -1,6 +1,7 @@
 const express = require("express");
 const Slot = require("../models/Slot");
 const authMiddleware = require("../middleware/auth.middleware");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -11,6 +12,16 @@ const router = express.Router();
 router.post("/:slotId", authMiddleware, async (req, res) => {
   const { slotId } = req.params;
   const userId = req.user.userId;
+
+  // Validate slotId format before querying DB (prevents CastError on invalid ObjectId)
+  if (!mongoose.Types.ObjectId.isValid(slotId)) {
+    return res.status(400).json({
+      error: {
+        code: "INVALID_SLOT_ID",
+        message: "Invalid slot ID"
+      }
+    });
+  }
 
   try {
     const slot = await Slot.findOneAndUpdate(
