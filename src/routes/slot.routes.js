@@ -3,6 +3,7 @@ const Slot = require("../models/Slot");
 const authMiddleware = require("../middleware/auth.middleware");
 const adminMiddleware = require("../middleware/admin.middleware");
 const generateSlots = require("../utils/slotGenerator");
+const { isSlotAtLeast30MinAhead, validateSlotDate } = require("../validators/slotTimeValidation");
 
 const router = express.Router();
 
@@ -83,15 +84,21 @@ router.get("/", authMiddleware, async (req, res) => {
  try { 
   const { date } = req.query;
 
-  // Date is mandatory to fetch slots
-  if (!date) {
-    return res.status(400).json({
-      error: {
-        code: "INVALID_INPUT",
-        message: "Date is required"
-      }
-    });
-  }
+  // Validate date
+    const validation = validateSlotDate(date);
+    if (!validation.valid) {
+      const errorMap = {
+        INVALID_DATE_FORMAT: "Date must be in YYYY-MM-DD format",
+        INVALID_DATE: "Invalid date",
+        PAST_DATE: "Past dates are not allowed"
+      };
+      return res.status(400).json({
+        error: {
+          code: validation.error,
+          message: errorMap[validation.error]
+        }
+      });
+    }
 
   // Fetch available slots sorted by start time
   const slots = await Slot.find({
@@ -99,7 +106,21 @@ router.get("/", authMiddleware, async (req, res) => {
     isBooked: false
   }).sort({ startTime: 1 });
 
-  return res.json(slots);
+  let filteredSlots = slots;
+
+  // Today -> apply 30-minute buffer
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toISOString().split("T")[0];
+    if (date === today) {
+      filteredSlots = slots.filter(slot => {
+        try {
+          return isSlotAtLeast30MinAhead(date, slot.startTime);
+        } catch {
+          return false; // skip invalid time
+        }
+      });
+    }
+
+    return res.json(filteredSlots);
 }  catch (err) {
     return res.status(500).json({
       error: {
