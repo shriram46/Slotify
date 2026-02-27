@@ -4,6 +4,7 @@ const authMiddleware = require("../middleware/auth.middleware");
 const adminMiddleware = require("../middleware/admin.middleware");
 const generateSlots = require("../utils/slotGenerator");
 const { isSlotAtLeast30MinAhead, validateSlotDate } = require("../validators/slotTimeValidation");
+const { validateSlotCreationInput } = require("../validators/slotCreationValidator");
 
 const router = express.Router();
 
@@ -19,15 +20,33 @@ router.post(
   async (req, res) => {
     const { date, startTime, endTime, intervalMinutes } = req.body;
 
-    // Validate required input fields
-    if (!date || !startTime || !endTime || !intervalMinutes) {
-      return res.status(400).json({
-        error: {
-          code: "INVALID_INPUT",
-          message: "All fields are required"
-        }
-      });
+    // Validate input using validator
+const validation = validateSlotCreationInput({
+  date,
+  startTime,
+  endTime,
+  intervalMinutes
+});
+
+if (!validation.valid) {
+  const errorMap = {
+    ALL_FIELDS_REQUIRED: "All fields are required",
+    INVALID_DATE_FORMAT: "Date must be YYYY-MM-DD",
+    INVALID_DATE: "Invalid date",
+    PAST_DATE: "Past dates are not allowed",
+    INVALID_TIME_FORMAT: "Time must be HH:mm",
+    INVALID_TIME_RANGE: "Start time must be before end time",
+    INVALID_INTERVAL: "Interval must be greater than 0",
+    INTERVAL_TOO_LARGE: "Interval too large"
+  };
+
+  return res.status(400).json({
+    error: {
+      code: validation.error,
+      message: errorMap[validation.error]
     }
+  });
+}
 
     // Generate slots based on provided time range and interval
     const slots = generateSlots(
