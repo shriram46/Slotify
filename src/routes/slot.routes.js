@@ -67,13 +67,40 @@ if (!validation.valid) {
     }
 
     try {
-      // Persist generated slots in the database
-      await Slot.insertMany(slots, { ordered: false });
+      // Check existing slots for same date + startTime
+const existingSlots = await Slot.find({
+  date,
+  startTime: { $in: slots.map(s => s.startTime) }
+}).select("startTime");
 
-      return res.status(201).json({
-        message: "Slots created successfully",
-        totalSlots: slots.length
-      });
+// Convert existing startTimes to Set for fast lookup
+const existingStartTimes = new Set(
+  existingSlots.map(s => s.startTime)
+);
+
+// Filter only new slots (remove duplicates)
+const newSlots = slots.filter(
+  s => !existingStartTimes.has(s.startTime)
+);
+
+// If nothing new to insert
+if (newSlots.length === 0) {
+  return res.status(409).json({
+    error: {
+      code: "SLOTS_ALREADY_EXIST",
+      message: "All slots already exist for this range"
+    }
+  });
+}
+
+// Insert only new slots
+await Slot.insertMany(newSlots);
+
+return res.status(201).json({
+  message: "Slots created successfully",
+  created: newSlots.length,
+  skippedDuplicates: slots.length - newSlots.length
+});
     } catch (err) {
       if (err.code === 11000) {
         return res.status(409).json({
