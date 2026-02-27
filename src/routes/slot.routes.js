@@ -5,6 +5,8 @@ const adminMiddleware = require("../middleware/admin.middleware");
 const generateSlots = require("../utils/slotGenerator");
 const { isSlotAtLeast30MinAhead, validateSlotDate } = require("../validators/slotTimeValidation");
 const { validateSlotCreationInput } = require("../validators/slotCreationValidator");
+const { validateCancellation } = require("../validators/cancelBookingValidation");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -219,27 +221,50 @@ router.delete(
     try {
     const { slotId } = req.params;
 
-    const slot = await Slot.findOneAndUpdate(
-      {
-        _id: slotId,
-        isBooked: true,
-        bookedBy: req.user.userId
-      },
-      {
-        isBooked: false,
-        bookedBy: null
-      },
-      { new: true }
-    );
-
-    if (!slot) {
-      return res.status(403).json({
-        error: {
-          code: "CANCEL_NOT_ALLOWED",
-          message: "You can only cancel your own booked slot"
-        }
+    // ObjectId validation
+    if (!mongoose.Types.ObjectId.isValid(slotId)) {
+       return res.status(400).json({
+       error: {
+       code: "INVALID_SLOT_ID",
+       message: "Invalid slot ID"
+      }
       });
+   }
+
+    // Step 1: Find the slot 
+const slot = await Slot.findById(slotId);
+
+// Check Slot
+ if (!slot) {
+  return res.status(404).json({
+    error: {
+      code: "SLOT_NOT_FOUND",
+      message: "Slot not found"
     }
+  });
+}
+// Step 2: Validate cancellation rules
+const validation = validateCancellation(slot, req.user.userId);
+
+if (!validation.valid) {
+  const errorMap = {
+    CANCEL_NOT_ALLOWED: "You can only cancel your own booked slot",
+    PAST_SLOT: "Cannot cancel past slot",
+    CANCEL_WINDOW_CLOSED: "Cancellation allowed only 24 hours before slot time"
+  };
+
+  return res.status(400).json({
+    error: {
+      code: validation.error,
+      message: errorMap[validation.error]
+    }
+  });
+}
+
+// Step 3: Cancel booking
+slot.isBooked = false;
+slot.bookedBy = null;
+await slot.save();
 
     return res.status(200).json({
       message: "Booking cancelled successfully",
