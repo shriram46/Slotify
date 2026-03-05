@@ -3,10 +3,11 @@ const Slot = require("../models/Slot");
 const authMiddleware = require("../middleware/auth.middleware");
 const adminMiddleware = require("../middleware/admin.middleware");
 const generateSlots = require("../utils/slotGenerator");
-const { isSlotAtLeast30MinAhead, validateSlotDate } = require("../validators/slotTimeValidation");
+const { isSlotAtLeast30MinAhead, validateSlotDate, validateDate } = require("../validators/slotTimeValidation");
 const { validateSlotCreationInput } = require("../validators/slotCreationValidator");
 const { validateCancellation } = require("../validators/cancelBookingValidation");
-const mongoose = require("mongoose");
+const { isValidObjectId } = require("../validators/objectIdValidator");
+const { getSlotAnalytics } = require("../controllers/analytics.controller");
 
 const router = express.Router();
 
@@ -222,7 +223,7 @@ router.delete(
     const { slotId } = req.params;
 
     // ObjectId validation
-    if (!mongoose.Types.ObjectId.isValid(slotId)) {
+    if (!isValidObjectId(slotId)) {
        return res.status(400).json({
        error: {
        code: "INVALID_SLOT_ID",
@@ -296,6 +297,16 @@ router.delete(
     try{
     const { slotId } = req.params;
 
+    //  ObjectId Validation
+    if (!isValidObjectId(slotId)) {
+  return res.status(400).json({
+    error: {
+      code: "INVALID_SLOT_ID",
+      message: "Invalid slot ID"
+    }
+  });
+}
+
     const slot = await Slot.findById(slotId);
 
     if (!slot) {
@@ -332,6 +343,20 @@ router.delete(
       });
     }
   }
+);
+
+
+/**
+ * GET /api/slots/analytics?date=YYYY-MM-DD
+ * Admin booking analytics for a given date
+ */
+
+router.get(
+  "/analytics",
+  authMiddleware,
+  adminMiddleware,
+  validateDate,
+  getSlotAnalytics
 );
 
 module.exports = router;

@@ -28,4 +28,33 @@ function validateSlotDate(date) {
   return { valid: true };
 }
 
-module.exports = { isSlotAtLeast30MinAhead, validateSlotDate };
+/**
+ * Validate date string (YYYY-MM-DD) and not past date
+ */
+
+ function validateDate(req, res, next) {
+  const { date } = req.query;
+
+  if (!date) {
+    return res.status(400).json({
+      error: {
+        code: "INVALID_INPUT",
+        message: "Date is required"
+      }
+    });
+  }
+
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (!dateRegex.test(date)) {
+    return res.status(400).json({
+      error: {
+        code: "INVALID_FORMAT",
+        message: "Date must be in YYYY-MM-DD format"
+      }
+    });
+  }
+
+  next();
+};
+module.exports = { isSlotAtLeast30MinAhead, validateSlotDate, validateDate };
