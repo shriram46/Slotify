@@ -6,6 +6,7 @@ const {
   validateRegister,
   validateLogin
 } = require("../validators/authValidator");
+const logger = require("../utils/logger");
 
 const router = express.Router();
 
@@ -17,9 +18,21 @@ router.post("/register", async (req, res) => {
 
   let { name, email, password } = req.body;
 
+  logger.info("User registration attempt", {
+    email,
+    requestId: req.requestId
+  });
+
      const error = validateRegister({ name, email, password });
 
     if (error) {
+      
+      logger.warn("Registration validation failed", {
+        email,
+        error,
+        requestId: req.requestId
+     });
+
       return res.status(400).json({
         error: { code: "INVALID_INPUT", message: error }
       });
@@ -27,6 +40,12 @@ router.post("/register", async (req, res) => {
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
+
+    logger.warn("Registration failed - user already exists", {
+      email,
+      requestId: req.requestId
+    });
+
     return res.status(409).json({
       error: {
         code: "USER_EXISTS",
@@ -43,13 +62,23 @@ router.post("/register", async (req, res) => {
     password: hashedPassword
   });
 
+  logger.info("User registered successfully", {
+   userId: user._id,
+   requestId: req.requestId
+  });
+
   return res.status(201).json({
     message: "User registered successfully",
     userId: user._id
   });
   
   } catch (err) {
-  console.error(err); 
+
+  logger.error("Registration failed", {
+   message: err.message,
+   stack: err.stack,
+   requestId: req.requestId
+  }); 
 
   return res.status(500).json({
     error: { code: "SERVER_ERROR", message: "Registration failed" }
@@ -70,9 +99,21 @@ router.post("/login", async (req, res) => {
     email = email.toLowerCase().trim();
     password = password.trim();
 
+    logger.info("User login attempt", {
+     email,
+     requestId: req.requestId
+    });
+
     const error = validateLogin({email, password });
 
     if (error) {
+
+      logger.warn("Login validation failed", {
+       email,
+       error,
+       requestId: req.requestId
+      });
+
       return res.status(400).json({
         error: { code: "INVALID_INPUT", message: error }
       });
@@ -81,6 +122,12 @@ router.post("/login", async (req, res) => {
 
   const user = await User.findOne({ email });
   if (!user) {
+    
+    logger.warn("Login failed - user not found", {
+     email,
+     requestId: req.requestId
+    });
+
     return res.status(401).json({
       error: {
         code: "INVALID_CREDENTIALS",
@@ -91,6 +138,12 @@ router.post("/login", async (req, res) => {
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
+
+    logger.warn("Login failed - invalid password", {
+     email,
+     requestId: req.requestId
+    });
+
     return res.status(401).json({
       error: {
         code: "INVALID_CREDENTIALS",
@@ -105,12 +158,22 @@ router.post("/login", async (req, res) => {
     { expiresIn: "1h" }
   );
 
+  logger.info("User login successful", {
+   userId: user._id,
+   requestId: req.requestId
+  });
+
   return res.json({
     token,
     role: user.role
   });
 } catch (err) {
-  console.error(err);
+  
+  logger.error("Login failed", {
+   message: err.message,
+   stack: err.stack,
+   requestId: req.requestId
+  });
 
   return res.status(500).json({
     error: {

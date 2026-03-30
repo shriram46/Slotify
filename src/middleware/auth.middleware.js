@@ -1,15 +1,22 @@
 const jwt = require("jsonwebtoken");
+const logger = require("../utils/logger");
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+
+    logger.warn("Unauthorized access attempt", {
+  path: req.originalUrl,
+  method: req.method
+});
+
     return res.status(401).json({
       error: {
         code: "UNAUTHORIZED",
         message: "Missing or invalid token"
       }
-    });
+    }); 
   }
 
   const token = authHeader.split(" ")[1];
@@ -19,6 +26,11 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
+
+    logger.error("Token verification failed", {
+  message: err.message
+   });
+
     return res.status(401).json({
       error: {
         code: "INVALID_TOKEN",
