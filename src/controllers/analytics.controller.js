@@ -1,4 +1,5 @@
 const Slot = require("../models/Slot");
+const logger = require("../utils/logger");
 
 /**
  * Get slot analytics for a specific date.
@@ -50,6 +51,17 @@ exports.getSlotAnalytics = async (req, res) => {
         ? `${Math.round((booked.length / allSlots.length) * 100)}%`
         : "0%";
 
+    logger.info("Slot analytics fetched", {
+      requestId: req.requestId,
+       date,
+      totalSlots: allSlots.length,
+      bookedSlots: booked.length,
+      availableSlots: available.length,
+      bookingRate,
+      pastBookedSlots: pastBooked.length,
+      upcomingBookedSlots: upcomingBooked.length
+    });
+
     // Send structured analytics response
     return res.json({
       date,
@@ -62,6 +74,13 @@ exports.getSlotAnalytics = async (req, res) => {
     });
 
   } catch (err) {
+    logger.error("Fetch analytics failed", {
+      requestId: req.requestId,
+      date: req.query?.date,
+      errorMessage: err.message,
+      stack: err.stack
+    });
+
     // Centralized error response for unexpected failures
     return res.status(500).json({
       error: {
