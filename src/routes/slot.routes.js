@@ -88,24 +88,29 @@ if (!validation.valid) {
 
     try {
       // Check existing slots for same date + startTime
-const existingSlots = await Slot.find({
-  date,
-  startTime: { $in: slots.map(s => s.startTime) }
-}).select("startTime");
-
-// Convert existing startTimes to Set for fast lookup
-const existingStartTimes = new Set(
-  existingSlots.map(s => s.startTime)
+// Get all existing slots for same date
+const existingSlots = await Slot.find({ date }).select(
+  "startTime endTime"
 );
 
-// Filter only new slots (remove duplicates)
-const newSlots = slots.filter(
-  s => !existingStartTimes.has(s.startTime)
-);
+// Helper function for overlap check
+const isOverlapping = (newSlot, oldSlot) => {
+  return (
+    newSlot.startTime < oldSlot.endTime &&
+    newSlot.endTime > oldSlot.startTime
+  );
+};
 
-// If nothing new to insert
+// Keep only non-overlapping slots
+const newSlots = slots.filter((slot) => {
+  return !existingSlots.some((existing) =>
+    isOverlapping(slot, existing)
+  );
+});
+
+// If nothing to insert
 if (newSlots.length === 0) {
-  logger.warn("All slots already exist", {
+  logger.warn("All slots already exist or overlap", {
     requestId: req.requestId,
     date
   });
@@ -113,13 +118,13 @@ if (newSlots.length === 0) {
   return res.status(409).json({
     error: {
       code: "SLOTS_ALREADY_EXIST",
-      message: "All slots already exist for this range"
+      message: "All slots already exist or overlap"
     }
   });
 }
 
-// Insert only new slots
-await Slot.insertMany(newSlots);
+// Insert new slots
+await Slot.insertMany(newSlots, { ordered: false });
 
 logger.info("Slots created", {
   requestId: req.requestId,
